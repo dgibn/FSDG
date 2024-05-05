@@ -240,7 +240,7 @@ class CoOp(TrainerX):
 
         if cfg.MODEL.INIT_WEIGHTS:
             load_pretrained_weights(self.model.prompt_learner, cfg.MODEL.INIT_WEIGHTS)
-        self.device = "cuda:1" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
         self.model.to(self.device)
         # NOTE: only give prompt_learner to the optimizer
@@ -274,10 +274,11 @@ class CoOp(TrainerX):
         else:
             output = self.model(image)
             output=output.to(torch.float16)
-            label=label.to(torch.float16)
+            label = label.to(torch.long)
             # print(label.dtype)
             # print(output.dtype)
-            loss = F.cross_entropy(output, label)
+            with torch.cuda.amp.autocast():
+                loss = F.cross_entropy(output, label)
             self.model_backward_and_update(loss)
 
         loss_summary = {

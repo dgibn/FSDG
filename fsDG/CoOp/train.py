@@ -165,10 +165,10 @@ if __name__ == "__main__":
         "--seed", type=int, default=-1, help="only positive value enables a fixed seed"
     )
     parser.add_argument(
-        "--source-domains",default=["art_painting"], type=str, nargs="+", help="source domains for DA/DG"
+        "--source-domains",default="art_painting", type=str, nargs="+", help="source domains for DA/DG"
     )
     parser.add_argument(
-        "--target-domains",default=["sketch"], type=str, nargs="+", help="target domains for DA/DG"
+        "--target-domains",default="sketch", type=str, nargs="+", help="target domains for DA/DG"
     )
     parser.add_argument(
         "--transforms", type=str, nargs="+", help="data augmentation methods"
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     parser.add_argument("--backbone", type=str, default="", help="name of CNN backbone")
     parser.add_argument("--head", type=str, default="", help="name of head")
     parser.add_argument("--eval-only", action="store_true", help="evaluation only")
-    parser.add_argument("--shots",typ=int,default=1, help="shots")
+    parser.add_argument("--shots",type=int,default=1, help="shots")
     parser.add_argument(
         "--model-dir",
         type=str,

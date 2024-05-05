@@ -4,11 +4,14 @@ from dassl.utils import listdir_nohidden
 import pickle
 import random
 from scipy.io import loadmat
+import os
+from dassl.utils import read_json, write_json, mkdir_if_missing
+from .oxford_pets import OxfordPets
+from .dtd import DescribableTextures as DTD
 
 
-
-# @DATASET_REGISTRY.register()
-class PACS(DatasetBase):
+@DATASET_REGISTRY.register()
+class PACSNEW(DatasetBase):
     """PACS.
 
     Statistics:
@@ -22,83 +25,59 @@ class PACS(DatasetBase):
         ICCV 2017.
     """
 
-    dataset_dir = "/raid/biplab/divyam/Divyam/fsDG/pacs/pacs"
+    dataset_dir = "/home/hassan/pacs_data"
     domains = ["art_painting", "cartoon", "photo", "sketch"]
     
     # the following images contain errors and should be ignored
-    _error_paths = ["sketch/dog/n02103406_4068-1.png"]
+    # _error_paths = ["sketch/dog/n02103406_4068-1.png"]
 
     def __init__(self, cfg):
         root = osp.abspath(osp.expanduser(cfg.DATASET.ROOT))
         self.dataset_dir = osp.join(root, self.dataset_dir)
-        self.image_dir = osp.join(self.dataset_dir, "images")
-        self.split_dir = osp.join(self.dataset_dir, "splits")
+        self.image_source_dir = osp.join(self.dataset_dir, cfg.DATASET.SOURCE_DOMAINS)
+        # self.split_dir = osp.join(self.dataset_dir, "splits")
+        self.split_source_path = os.path.join(self.dataset_dir, f"split_pacs_{cfg.DATASET.SOURCE_DOMAINS}.json")
+        self.split_source_fewshot_dir = os.path.join(self.dataset_dir, f"split_fewshot_{cfg.DATASET.SOURCE_DOMAINS}")
 
-        if not osp.exists(self.dataset_dir):
-            dst = osp.join(root, "pacs.zip")
-            self.download_data(self.data_url, dst, from_gdrive=True)
+        self.image_target_dir = osp.join(self.dataset_dir, cfg.DATASET.TARGET_DOMAINS)
+        # self.split_dir = osp.join(self.dataset_dir, "splits")
+        self.split_target_path = os.path.join(self.dataset_dir, f"split_pacs_{cfg.DATASET.TARGET_DOMAINS}.json")
+        self.split_target_fewshot_dir = os.path.join(self.dataset_dir, f"split_fewshot_{cfg.DATASET.TARGET_DOMAINS}")
+        mkdir_if_missing(self.split_source_fewshot_dir)
+        mkdir_if_missing(self.split_target_fewshot_dir)
 
-        self.check_input_domains(
-            cfg.DATASET.SOURCE_DOMAINS, cfg.DATASET.TARGET_DOMAINS
-        )
-
-        train = self._read_data(cfg.DATASET.SOURCE_DOMAINS, "train")
-        random.shuffle(train)
-        train = train[0:cfg.DATASET.NUM_SHOTS]
-        print(len(train))
-        val = self._read_data(cfg.DATASET.SOURCE_DOMAINS, "crossval")
-        random.shuffle(val)
-        print(len(val))
-        exit()
-        val = val[0:cfg.DATASET.NUM_SHOTS]
-        test = self._read_data(cfg.DATASET.TARGET_DOMAINS, "all")
-
-        super().__init__(train_x=train, val=val, test=test)
-
-    def _read_data(self, input_domains, split):
-        items = []
-
-        for domain, dname in enumerate(input_domains):
-            if split == "all":
-                file_train = osp.join(
-                    self.split_dir, dname + "_train_kfold.txt"
-                )
-                impath_label_list = self._read_split_pacs(file_train)
-                file_val = osp.join(
-                    self.split_dir, dname + "_crossval_kfold.txt"
-                )
-                impath_label_list += self._read_split_pacs(file_val)
+        if os.path.exists(self.split_source_path):
+            train, val, test = OxfordPets.read_split(self.split_source_path, self.image_source_dir)
+        else:
+            train, val, test = DTD.read_and_split_data(self.image_source_dir)
+            OxfordPets.save_split(train, val, test, self.split_source_path, self.image_source_dir)
+        
+        if os.path.exists(self.split_target_path):
+            _,_, testx = OxfordPets.read_split(self.split_target_path, self.image_target_dir)
+        else:
+            _, _, testx = DTD.read_and_split_data(self.image_target_dir)
+            OxfordPets.save_split(train, val, testx, self.split_target_path, self.image_target_dir)
+        
+        num_shots = cfg.DATASET.NUM_SHOTS
+        if num_shots >= 1:
+            seed = cfg.SEED
+            preprocessed = os.path.join(self.split_source_fewshot_dir, f"shot_{num_shots}-seed_{seed}.pkl")
+            
+            if os.path.exists(preprocessed):
+                print(f"Loading preprocessed few-shot data from {preprocessed}")
+                with open(preprocessed, "rb") as file:
+                    data = pickle.load(file)
+                    train, val = data["train"], data["val"]
             else:
-                file = osp.join(
-                    self.split_dir, dname + "_" + split + "_kfold.txt"
-                )
-                impath_label_list = self._read_split_pacs(file)
+                train = self.generate_fewshot_dataset(train, num_shots=num_shots)
+                val = self.generate_fewshot_dataset(val, num_shots=min(num_shots, 4))
+                data = {"train": train, "val": val}
+                print(f"Saving preprocessed few-shot data to {preprocessed}")
+                with open(preprocessed, "wb") as file:
+                    pickle.dump(data, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-            for impath, label in impath_label_list:
-                classname = impath.split("/")[-2]
-                item = Datum(
-                    impath=impath,
-                    label=label,
-                    domain=domain,
-                    classname=classname
-                )
-                items.append(item)
-
-        return items
-
-    def _read_split_pacs(self, split_file):
-        items = []
-
-        with open(split_file, "r") as f:
-            lines = f.readlines()
-
-            for line in lines:
-                line = line.strip()
-                impath, label = line.split(" ")
-                if impath in self._error_paths:
-                    continue
-                impath = osp.join(self.image_dir, impath)
-                label = int(label) - 1
-                items.append((impath, label))
-
-        return items
+        subsample = cfg.DATASET.SUBSAMPLE_CLASSES
+        train, val, test = OxfordPets.subsample_classes(train, val, test, subsample=subsample)
+        # print(train)
+        # print(textx)
+        super().__init__(train_x=train, val=val, test=testx)
