@@ -165,10 +165,10 @@ if __name__ == "__main__":
         "--seed", type=int, default=-1, help="only positive value enables a fixed seed"
     )
     parser.add_argument(
-        "--source-domains",default="art_painting", type=str, nargs="+", help="source domains for DA/DG"
+        "--source-domains",default="photo", type=str, nargs="+", help="source domains for DA/DG"
     )
     parser.add_argument(
-        "--target-domains",default="sketch", type=str, nargs="+", help="target domains for DA/DG"
+        "--target-domains",default="photo", type=str, nargs="+", help="target domains for DA/DG"
     )
     parser.add_argument(
         "--transforms", type=str, nargs="+", help="data augmentation methods"

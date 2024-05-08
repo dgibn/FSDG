@@ -32,20 +32,22 @@ class PACSNEW(DatasetBase):
     # _error_paths = ["sketch/dog/n02103406_4068-1.png"]
 
     def __init__(self, cfg):
+        print(cfg.DATASET.SOURCE_DOMAINS)
         root = osp.abspath(osp.expanduser(cfg.DATASET.ROOT))
         self.dataset_dir = osp.join(root, self.dataset_dir)
-        self.image_source_dir = osp.join(self.dataset_dir, cfg.DATASET.SOURCE_DOMAINS)
+        self.image_source_dir = osp.join(self.dataset_dir, cfg.DATASET.SOURCE_DOMAINS[0])
         # self.split_dir = osp.join(self.dataset_dir, "splits")
-        self.split_source_path = os.path.join(self.dataset_dir, f"split_pacs_{cfg.DATASET.SOURCE_DOMAINS}.json")
-        self.split_source_fewshot_dir = os.path.join(self.dataset_dir, f"split_fewshot_{cfg.DATASET.SOURCE_DOMAINS}")
+        self.split_source_path = os.path.join(self.dataset_dir, f"split_pacs_{cfg.DATASET.SOURCE_DOMAINS[0]}.json")
+        self.split_source_fewshot_dir = os.path.join(self.dataset_dir, f"split_fewshot_{cfg.DATASET.SOURCE_DOMAINS[0]}")
 
-        self.image_target_dir = osp.join(self.dataset_dir, cfg.DATASET.TARGET_DOMAINS)
+        self.image_target_dir = osp.join(self.dataset_dir, cfg.DATASET.TARGET_DOMAINS[0])
         # self.split_dir = osp.join(self.dataset_dir, "splits")
-        self.split_target_path = os.path.join(self.dataset_dir, f"split_pacs_{cfg.DATASET.TARGET_DOMAINS}.json")
-        self.split_target_fewshot_dir = os.path.join(self.dataset_dir, f"split_fewshot_{cfg.DATASET.TARGET_DOMAINS}")
+        self.split_target_path = os.path.join(self.dataset_dir, f"split_pacs_{cfg.DATASET.TARGET_DOMAINS[0]}.json")
+        self.split_target_fewshot_dir = os.path.join(self.dataset_dir, f"split_fewshot_{cfg.DATASET.TARGET_DOMAINS[0]}")
         mkdir_if_missing(self.split_source_fewshot_dir)
         mkdir_if_missing(self.split_target_fewshot_dir)
-
+        print(self.image_source_dir)
+        # print(self.image_target_dir)
         if os.path.exists(self.split_source_path):
             train, val, test = OxfordPets.read_split(self.split_source_path, self.image_source_dir)
         else:
