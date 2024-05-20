@@ -6,6 +6,7 @@ from torch.nn import functional as F
 from torch.cuda.amp import GradScaler, autocast
 
 from dassl.engine import TRAINER_REGISTRY, TrainerX
+from dassl.utils import listdir_nohidden
 from dassl.metrics import compute_accuracy
 from dassl.utils import load_pretrained_weights, load_checkpoint
 from dassl.optim import build_optimizer, build_lr_scheduler
@@ -94,7 +95,7 @@ class PromptLearner(nn.Module):
         print(f"Number of context words (tokens): {n_ctx}")
 
         self.ctx = nn.Parameter(ctx_vectors)  # to be optimized
-
+        # print(classnames)
         classnames = [name.replace("_", " ") for name in classnames]
         name_lens = [len(_tokenizer.encode(name)) for name in classnames]
         prompts = [prompt_prefix + " " + name + "." for name in classnames]
@@ -222,6 +223,13 @@ class CoOp(TrainerX):
     def build_model(self):
         cfg = self.cfg
         classnames = self.dm.dataset.classnames
+        # print(classnames)
+        if cfg.DATASET.NAME == "DOMAINNETNEW":
+            classnames = listdir_nohidden("/raid/biplab/hassan/PromptSRC/data/DomainNet-126/clipart")
+            classnames = [c for c in classnames]
+            classnames.sort()
+            
+        # print(self.dm.dataset)
 
         print(f"Loading CLIP (backbone: {cfg.MODEL.BACKBONE.NAME})")
         clip_model = load_clip_to_cpu(cfg)
